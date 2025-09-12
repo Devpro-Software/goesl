@@ -8,6 +8,7 @@ package goesl
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -33,10 +34,14 @@ func (c *Client) EstablishConnection() error {
 		return err
 	}
 
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
 	c.SocketConnection = SocketConnection{
-		Conn: conn,
-		err:  make(chan error),
-		m:    make(chan *Message),
+		Conn:   conn,
+		err:    make(chan error),
+		m:      make(chan *Message),
+		ctx:    ctx,
+		cancel: cancel,
 	}
 
 	return nil

@@ -9,6 +9,7 @@ package goesl
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -21,9 +22,11 @@ import (
 // Main connection against ESL - Gotta add more description here
 type SocketConnection struct {
 	net.Conn
-	err chan error
-	m   chan *Message
-	mtx sync.Mutex
+	err    chan error
+	m      chan *Message
+	mtx    sync.Mutex
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // Dial - Will establish timedout dial against specified address. In this case, it will be freeswitch server
@@ -182,7 +185,7 @@ func (c *SocketConnection) OriginatorAddr() net.Addr {
 }
 
 // ReadMessage - Will read message from channels and return them back accordingy.
-// If error is received, error will be returned. If not, message will be returned back!
+//  If error is received, error will be returned. If not, message will be returned back!
 func (c *SocketConnection) ReadMessage() (*Message, error) {
 	Debug("Waiting for connection message to be received ...")
 
@@ -197,8 +200,6 @@ func (c *SocketConnection) ReadMessage() (*Message, error) {
 // Handle - Will handle new messages and close connection when there are no messages left to process
 func (c *SocketConnection) Handle() {
 
-	done := make(chan bool)
-
 	rbuf := bufio.NewReaderSize(c, ReadBufferSize)
 
 	go func() {
@@ -206,8 +207,7 @@ func (c *SocketConnection) Handle() {
 			msg, err := newMessage(rbuf, true)
 
 			if err != nil {
-				c.err <- err
-				done <- true
+				c.cancel()
 				break
 			}
 
@@ -215,7 +215,7 @@ func (c *SocketConnection) Handle() {
 		}
 	}()
 
-	<-done
+	<-c.ctx.Done()
 
 	// Closing the connection now as there's nothing left to do ...
 	c.Close()
@@ -223,6 +223,7 @@ func (c *SocketConnection) Handle() {
 
 // Close - Will close down net connection and return error if error happen
 func (c *SocketConnection) Close() error {
+	c.cancel()
 	if err := c.Conn.Close(); err != nil {
 		return err
 	}
