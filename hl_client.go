@@ -25,7 +25,7 @@ func (c *HLClient) makeClient() (*Client, error) {
 	return NewClient(c.host, uint(c.port), c.password, defaultConnectionTimeout)
 }
 
-func (c *HLClient) Originate(gateway, destination, callerID string) (string, error) {
+func (c *HLClient) Originate(gateway, destination, callerID string, params map[string]string) (string, error) {
 	esl, err := c.makeClient()
 	if err != nil {
 		return "", fmt.Errorf("failed to make client: %w", err)
@@ -33,7 +33,14 @@ func (c *HLClient) Originate(gateway, destination, callerID string) (string, err
 	go esl.Handle()
 	defer esl.Close()
 
-	err = esl.Api(fmt.Sprintf("originate {origination_caller_id_number=%s}sofia/gateway/%s/%s &park()", callerID, gateway, destination))
+	params["origination_caller_id_number"] = callerID
+	paramList := make([]string, 0, len(params))
+	for k, v := range params {
+		paramList = append(paramList, fmt.Sprintf("%s=%s", k, v))
+	}
+	paramsStr := strings.Join(paramList, ",")
+
+	err = esl.Api(fmt.Sprintf("originate {%s}sofia/gateway/%s/%s &park()", paramsStr, gateway, destination))
 	if err != nil {
 		return "", fmt.Errorf("failed to originate call: %w", err)
 	}
@@ -57,7 +64,7 @@ func (c *HLClient) Originate(gateway, destination, callerID string) (string, err
 	return callID, nil
 }
 
-func (c *HLClient) OriginateConference(gateway, destination, callerID, conferenceName string) (string, error) {
+func (c *HLClient) OriginateConference(gateway, destination, callerID, conferenceName string, params map[string]string) (string, error) {
 	esl, err := c.makeClient()
 	go esl.Handle()
 	defer esl.Close()
@@ -65,7 +72,14 @@ func (c *HLClient) OriginateConference(gateway, destination, callerID, conferenc
 		return "", fmt.Errorf("failed to make client: %w", err)
 	}
 
-	err = esl.Api(fmt.Sprintf("originate {origination_caller_id_number=%s}sofia/gateway/%s/%s &conference(%s+flags(mintwo)", callerID, gateway, destination, conferenceName))
+	params["origination_caller_id_number"] = callerID
+	paramList := make([]string, 0, len(params))
+	for k, v := range params {
+		paramList = append(paramList, fmt.Sprintf("%s=%s", k, v))
+	}
+	paramsStr := strings.Join(paramList, ",")
+
+	err = esl.Api(fmt.Sprintf("originate {%s}sofia/gateway/%s/%s &conference(%s+flags(mintwo)", paramsStr, gateway, destination, conferenceName))
 	if err != nil {
 		return "", fmt.Errorf("failed to originate call: %w", err)
 	}
