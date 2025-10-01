@@ -7,6 +7,7 @@
 package goesl
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -31,7 +32,6 @@ func (s *OutboundServer) Start() error {
 	var err error
 
 	s.Listener, err = net.Listen(s.Proto, s.Addr)
-
 	if err != nil {
 		Error(ECouldNotStartListener, err)
 		return err
@@ -44,17 +44,20 @@ func (s *OutboundServer) Start() error {
 			Warning("Waiting for incoming connections ...")
 
 			c, err := s.Accept()
-
 			if err != nil {
 				Error(EListenerConnection, err)
 				quit <- true
 				break
 			}
 
+			ctx := context.Background()
+			ctx, cancel := context.WithCancel(ctx)
 			conn := SocketConnection{
-				Conn: c,
-				err:  make(chan error),
-				m:    make(chan *Message),
+				Conn:   c,
+				err:    make(chan error),
+				m:      make(chan *Message),
+				ctx:    ctx,
+				cancel: cancel,
 			}
 
 			Notice("Got new connection from: %s", conn.OriginatorAddr())
