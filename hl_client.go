@@ -25,7 +25,7 @@ func (c *HLClient) makeClient() (*Client, error) {
 	return NewClient(c.host, uint(c.port), c.password, defaultConnectionTimeout)
 }
 
-func (c *HLClient) Originate(gateway string, callerID string, destination string) (string, error) {
+func (c *HLClient) Originate(gateway, destination, callerID string) (string, error) {
 	esl, err := c.makeClient()
 	if err != nil {
 		return "", fmt.Errorf("failed to make client: %w", err)
@@ -57,6 +57,36 @@ func (c *HLClient) Originate(gateway string, callerID string, destination string
 	return callID, nil
 }
 
+func (c *HLClient) OriginateConference(gateway, destination, callerID, conferenceName string) (string, error) {
+	esl, err := c.makeClient()
+	go esl.Handle()
+	defer esl.Close()
+	if err != nil {
+		return "", fmt.Errorf("failed to make client: %w", err)
+	}
+
+	err = esl.Api(fmt.Sprintf("originate {origination_caller_id_number=%s}sofia/gateway/%s/%s &conference(%s+flags(mintwo)", callerID, gateway, destination, conferenceName))
+	if err != nil {
+		return "", fmt.Errorf("failed to originate call: %w", err)
+	}
+
+	var msg *Message
+	for {
+		m, err := esl.ReadMessage()
+		if err != nil {
+			return "", fmt.Errorf("failed to read message: %w", err)
+		}
+
+		if len(m.Body) > 0 {
+			msg = m
+			break
+		}
+	}
+	body := string(msg.Body)
+	callID := strings.TrimPrefix(body, "+OK ")
+	return callID, nil
+}
+
 func (c *HLClient) Bridge(callID1 string, callID2 string) (string, error) {
 	esl, err := c.makeClient()
 	go esl.Handle()
@@ -84,5 +114,65 @@ func (c *HLClient) Bridge(callID1 string, callID2 string) (string, error) {
 	}
 
 	callID := strings.TrimPrefix(string(msg.Body), "+OK ")
+	return callID, nil
+}
+
+func (c *HLClient) Deflect(callID, destination, gateway string) (string, error) {
+	esl, err := c.makeClient()
+	go esl.Handle()
+	defer esl.Close()
+	if err != nil {
+		return "", fmt.Errorf("failed to make client: %w", err)
+	}
+
+	err = esl.Api(fmt.Sprintf("uuid_deflect %s sofia/gateway/%s/%s", callID, gateway, destination))
+	if err != nil {
+		return "", fmt.Errorf("failed to deflect call: %w", err)
+	}
+
+	var msg *Message
+	for {
+		m, err := esl.ReadMessage()
+		if err != nil {
+			return "", fmt.Errorf("failed to read message: %w", err)
+		}
+
+		if len(m.Body) > 0 {
+			msg = m
+			break
+		}
+	}
+	body := string(msg.Body)
+	callID = strings.TrimPrefix(body, "+OK ")
+	return callID, nil
+}
+
+func (c *HLClient) Transfer(callID, destination, gateway string) (string, error) {
+	esl, err := c.makeClient()
+	go esl.Handle()
+	defer esl.Close()
+	if err != nil {
+		return "", fmt.Errorf("failed to make client: %w", err)
+	}
+
+	err = esl.Api(fmt.Sprintf("uuid_transfer %s sofia/gateway/%s/%s", callID, gateway, destination))
+	if err != nil {
+		return "", fmt.Errorf("failed to transfer call: %w", err)
+	}
+
+	var msg *Message
+	for {
+		m, err := esl.ReadMessage()
+		if err != nil {
+			return "", fmt.Errorf("failed to read message: %w", err)
+		}
+
+		if len(m.Body) > 0 {
+			msg = m
+			break
+		}
+	}
+	body := string(msg.Body)
+	callID = strings.TrimPrefix(body, "+OK ")
 	return callID, nil
 }
