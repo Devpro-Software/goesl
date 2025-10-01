@@ -64,7 +64,7 @@ func (c *HLClient) Originate(gateway, destination, callerID string, params map[s
 	return callID, nil
 }
 
-func (c *HLClient) OriginateConference(gateway, destination, callerID, conferenceName string, params map[string]string) (string, error) {
+func (c *HLClient) OriginateConference(gateway, destination, callerID, conferenceName string, params map[string]string, conferenceFlags string) (string, error) {
 	esl, err := c.makeClient()
 	go esl.Handle()
 	defer esl.Close()
@@ -79,7 +79,7 @@ func (c *HLClient) OriginateConference(gateway, destination, callerID, conferenc
 	}
 	paramsStr := strings.Join(paramList, ",")
 
-	err = esl.Api(fmt.Sprintf("originate {%s}sofia/gateway/%s/%s &conference(%s+flags(mintwo)", paramsStr, gateway, destination, conferenceName))
+	err = esl.Api(fmt.Sprintf("originate {%s}sofia/gateway/%s/%s &conference(%s+flags{%s})", paramsStr, gateway, destination, conferenceName, conferenceFlags))
 	if err != nil {
 		return "", fmt.Errorf("failed to originate call: %w", err)
 	}
