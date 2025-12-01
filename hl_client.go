@@ -131,7 +131,7 @@ func (c *HLClient) Bridge(callID1 string, callID2 string) (string, error) {
 	return callID, nil
 }
 
-func (c *HLClient) Deflect(callID, destination, gateway string) (string, error) {
+func (c *HLClient) Deflect(callID, destination string) (string, error) {
 	esl, err := c.makeClient()
 	go esl.Handle()
 	defer esl.Close()
@@ -139,7 +139,7 @@ func (c *HLClient) Deflect(callID, destination, gateway string) (string, error) 
 		return "", fmt.Errorf("failed to make client: %w", err)
 	}
 
-	err = esl.Api(fmt.Sprintf("uuid_deflect %s sofia/gateway/%s/%s", callID, gateway, destination))
+	err = esl.Api(fmt.Sprintf("uuid_deflect %s %s", callID, destination))
 	if err != nil {
 		return "", fmt.Errorf("failed to deflect call: %w", err)
 	}
