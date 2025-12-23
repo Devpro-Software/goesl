@@ -25,7 +25,7 @@ func (c *HLClient) makeClient() (*Client, error) {
 	return NewClient(c.host, uint(c.port), c.password, defaultConnectionTimeout)
 }
 
-func (c *HLClient) Originate(gateway, destination, callerID string, params map[string]string) (string, error) {
+func (c *HLClient) Originate(path, callerID string, params map[string]string) (string, error) {
 	esl, err := c.makeClient()
 	if err != nil {
 		return "", fmt.Errorf("failed to make client: %w", err)
@@ -40,7 +40,7 @@ func (c *HLClient) Originate(gateway, destination, callerID string, params map[s
 	}
 	paramsStr := strings.Join(paramList, ",")
 
-	err = esl.Api(fmt.Sprintf("originate {%s}sofia/gateway/%s/%s &park()", paramsStr, gateway, destination))
+	err = esl.Api(fmt.Sprintf("originate {%s}%s &park()", paramsStr, path))
 	if err != nil {
 		return "", fmt.Errorf("failed to originate call: %w", err)
 	}
